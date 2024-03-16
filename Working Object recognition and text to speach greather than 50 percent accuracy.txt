@@ -1,0 +1,79 @@
+
+import mediapipe as mp
+
+import pyttsx3
+from PIL import Image
+import numpy as np
+import cv2
+import os
+
+# Function definition for formatting detection results
+def format_detection_results(detection_results, confidence_threshold=0.5):
+    formatted_results = ""
+    for detection in detection_results.detections:
+        for category in detection.categories:
+            if category.score >= confidence_threshold:
+                formatted_results += f"{category.category_name}: {category.score:.2%}\n"
+    return formatted_results.strip()
+
+# Visualization function definition (already provided in your code)
+
+# Model and image paths
+model_path = r"C:\Users\matth\Downloads\efficientdet_lite2.tflite"
+image_path = r"C:\Users\matth\Pictures\man-standing-under-cloudy-sky-during-daytime.jpg"
+
+# Open the image file
+original_image = Image.open(image_path)
+
+# Define the new size (width, height)
+new_size = (320, 320)
+
+# Resize the image
+resized_image = original_image.resize(new_size)
+
+# Object detection setup
+ObjectDetector = mp.tasks.vision.ObjectDetector
+BaseOptions = mp.tasks.BaseOptions
+ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+options = ObjectDetectorOptions(
+    base_options=BaseOptions(model_asset_path=(model_path)),
+    max_results=5,
+    running_mode=VisionRunningMode.IMAGE
+)
+
+# Perform object detection
+with ObjectDetector.create_from_options(options) as detector:
+    # Save the resized image to a temporary file
+    temp_image_path = "temp_resized_image.jpg"
+    resized_image.save(temp_image_path)
+
+    # Load the input image from the saved file using OpenCV
+    numpy_image = cv2.imread(temp_image_path)
+
+    # Remove the temporary file
+    os.remove(temp_image_path)
+
+    # Convert the image to RGB format
+    numpy_image_rgb = cv2.cvtColor(numpy_image, cv2.COLOR_BGR2RGB)
+
+    # Create an mp.Image from the NumPy array
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy_image_rgb)
+
+    # Perform object detection on the provided single image.
+    detection_result = detector.detect(mp_image)
+
+    # Format and print the recognized objects
+    formatted_results = format_detection_results(detection_result, confidence_threshold=0.5)
+    print("Recognized Objects:")
+    print(formatted_results)
+
+    # Initialize the text-to-speech engine
+    engine = pyttsx3.init()
+
+    # Speak the recognized text
+    engine.say(formatted_results)
+
+    # Wait for the speech to finish
+    engine.runAndWait()
